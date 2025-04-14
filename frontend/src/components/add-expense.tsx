@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -29,8 +31,27 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast.error('File is too large', {
+        description: 'Please upload an image smaller than 5MB',
+      });
+      e.target.value = '';
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type', {
+        description: 'Please upload an image file',
+      });
+      e.target.value = '';
+      return;
+    }
+    
     setBillImage(file);
     setPreviewUrl(URL.createObjectURL(file));
+    toast.success('Image selected', {
+      description: file.name,
+    });
 
     try {
       const username = localStorage.getItem("username");
@@ -55,10 +76,12 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
             amount: data.amount.toString(),
             description: data.description || ""
           }));
+          toast.success('Bill image uploaded successfully');
         }
       }
     } catch (err) {
       console.error("Error processing image:", err);
+      toast.error('Failed to upload bill image, continuing without it');
     }
   };
 
@@ -67,7 +90,16 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
     setError("");
     setIsLoading(true);
 
+    if (!formData.title || !formData.amount || !formData.category) {
+      toast.error('Please fill in all required fields');
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // Show loading toast
+      const loadingToast = toast.loading('Adding expense...');
+
       const username = localStorage.getItem("username");
       if (!username) throw new Error("Not authenticated");
 
@@ -90,6 +122,12 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
 
       if (!response.ok) throw new Error("Failed to add expense");
 
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToast);
+      toast.success('Expense added successfully! 🎉', {
+        description: `${formData.title} - ${formData.amount}`,
+      });
+
       // Reset form
       setFormData({
         title: "",
@@ -102,7 +140,9 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
       onExpenseAdded();
     } catch (err) {
       console.error("Error adding expense:", err);
-      setError(err instanceof Error ? err.message : "Failed to add expense");
+      toast.error('Failed to add expense', {
+        description: err instanceof Error ? err.message : 'Please try again',
+      });
     } finally {
       setIsLoading(false);
     }

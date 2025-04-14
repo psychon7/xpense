@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icons } from '@/components/ui/icons';
+import { Edit, Trash, MoreVertical, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { API_URL } from '@/config/api';
+import { toast } from 'sonner';
 
 interface Expense {
   id: number;
@@ -74,25 +75,61 @@ export function ExpenseActions({ expense, onUpdate, categories }: ExpenseActions
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
-
+  const handleSettle = async () => {
     try {
-      const username = localStorage.getItem("username");
-      if (!username) return;
-
-      const response = await fetch(`${API_URL}/expenses/${expense.id}`, {
-        method: 'DELETE',
-        headers: {
-          'X-Username': username
-        }
+      const loadingToast = toast.loading('Settling expense...');
+      
+      const response = await fetch(`/api/expenses/${expense.id}/settle`, {
+        method: 'POST',
       });
 
-      if (!response.ok) throw new Error('Failed to delete expense');
+      if (!response.ok) {
+        throw new Error('Failed to settle expense');
+      }
 
-      onUpdate();
+      toast.dismiss(loadingToast);
+      toast.success('Expense settled successfully! 🎉', {
+        description: `${expense.title} has been marked as settled`,
+      });
+
+      // Refresh the page to update the UI
+      // router.refresh();
+    } catch (error) {
+      console.error('Error settling expense:', error);
+      toast.error('Failed to settle expense', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
+
+    try {
+      const loadingToast = toast.loading('Deleting expense...');
+      
+      const response = await fetch(`/api/expenses/${expense.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete expense');
+      }
+
+      toast.dismiss(loadingToast);
+      toast.success('Expense deleted successfully', {
+        description: `${expense.title} has been removed`,
+      });
+
+      // Refresh the page to update the UI
+      // router.refresh();
     } catch (error) {
       console.error('Error deleting expense:', error);
+      toast.error('Failed to delete expense', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
     }
   };
 
@@ -100,18 +137,22 @@ export function ExpenseActions({ expense, onUpdate, categories }: ExpenseActions
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Icons.more className="h-4 w-4" />
-            <span className="sr-only">Actions</span>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
-            <Icons.edit className="mr-2 h-4 w-4" />
+            <Edit className="mr-2 h-4 w-4" />
             Edit
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSettle}>
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Settle
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDelete}>
-            <Icons.trash className="mr-2 h-4 w-4" />
+            <Trash className="mr-2 h-4 w-4" />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
