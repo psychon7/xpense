@@ -70,7 +70,7 @@ export function BalanceSummary({ balances }: BalanceSummaryProps) {
               </div>
             ))}
             {balances.i_owe.length === 0 && (
-              <p className="text-sm text-muted-foreground">You don't owe anyone</p>
+              <p className="text-sm text-muted-foreground">You don't owe anyone money at the moment</p>
             )}
           </div>
         </CardContent>

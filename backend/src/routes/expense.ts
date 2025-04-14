@@ -70,7 +70,7 @@ const mockExpenses = [
 // Get all expenses
 router.get('/', (c) => {
   const username = c.get('username');
-  console.log('Getting expenses for user:', username);
+  console.log('Getting expenses for user:', username, 'at:', new Date().toISOString());
 
   // Filter expenses to show all expenses where the user is either creator or participant
   const userExpenses = mockExpenses.filter(expense => 
