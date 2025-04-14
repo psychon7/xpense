@@ -16,6 +16,9 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
+    permissions:
+      contents: read
+      deployments: write
 
     steps:
       - uses: actions/checkout@v4
