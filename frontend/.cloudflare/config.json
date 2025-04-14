@@ -1,10 +1,17 @@
 {
   "name": "xpense-app",
+  "type": "frontend",
   "build": {
     "command": "npm run build",
-    "output": "dist",
-    "environment": {
-      "NODE_VERSION": "18"
+    "output": "dist"
+  },
+  "routes": [
+    {
+      "pattern": "/api/*",
+      "zone_name": "xpense-app.pages.dev"
     }
+  ],
+  "env": {
+    "NODE_VERSION": "18"
   }
 }

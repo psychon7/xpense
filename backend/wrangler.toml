@@ -6,22 +6,21 @@ compatibility_date = "2024-04-14"
 [[d1_databases]]
 binding = "DB"
 database_name = "xpense-db"
-database_id = "" # Will be filled after creating the database
+database_id = "494906c3-ccff-42a9-a38a-94a2a011c545"
 
 # KV for session management
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "test-id" # This is just for local development
-preview_id = "test-id"
+id = "8b42d48ad1334e0586d8c8a2156d549f"
 
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
 SITE_NAME = "Xpense App"
 
-# Secrets that will be set using wrangler
-# wrangler secret put CLOUDINARY_CLOUD_NAME
-# wrangler secret put CLOUDINARY_API_KEY
-# wrangler secret put CLOUDINARY_API_SECRET
-# wrangler secret put OPENROUTER_API_KEY
-# wrangler secret put JWT_SECRET
+# CORS configuration
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
