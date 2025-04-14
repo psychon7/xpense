@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Redirect root to login page
-  if (request.nextUrl.pathname === '/') {
+  // Only apply auth protection to specific routes
+  const protectedPaths = ['/dashboard', '/expenses', '/settings'];
+  const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path));
+
+  if (isProtectedPath) {
+    // TODO: Add auth check here
+    // For now, redirect to login if not authenticated
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
