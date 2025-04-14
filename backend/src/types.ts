@@ -1,51 +1,25 @@
 /// <reference types="@cloudflare/workers-types" />
 
 export interface User {
-  id: number;
   username: string;
-  email: string;
-  password_hash: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Expense {
   id: number;
-  title: string;
   amount: number;
-  description?: string;
+  description: string;
   category: string;
+  creator: string;
   bill_image_url?: string;
-  ocr_text?: string;
-  split_type: 'equal' | 'percentage' | 'custom';
+  created_at: string;
+  participants: string[];
   is_settled: boolean;
-  creator_id: number;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface ExpenseSplit {
-  id: number;
-  expense_id: number;
-  user_id: number;
-  amount: number;
-  is_paid: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Comment {
-  id: number;
-  expense_id: number;
-  user_id: number;
-  content: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AuthUser {
-  id: number;
-  username: string;
+export interface Balance {
+  owed_by_me: Record<string, number>;
+  owed_to_me: Record<string, number>;
+  total_balance: number;
 }
 
 export interface Env {
@@ -56,4 +30,8 @@ export interface Env {
   JWT_SECRET: string;
   ENVIRONMENT: string;
   SITE_NAME: string;
+}
+
+export interface Variables {
+  username: string;
 }

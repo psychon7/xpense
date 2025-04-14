@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Icons } from "@/components/ui/icons";
+import { API_URL } from "@/config/api";
 
-const API_URL = "http://localhost:8000";
+const ALLOWED_USERS = ["mohan95", "vandana94", "sushruth93"];
 
 const categories = [
   "Food",
@@ -27,18 +28,26 @@ const categories = [
   "Entertainment",
   "Shopping",
   "Other",
-];
+] as const;
+
+type Category = typeof categories[number];
+
+interface FormData {
+  title: string;
+  amount: string;
+  description: string;
+  category: Category;
+}
 
 export default function AddExpensePage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: "",
     amount: "",
     description: "",
     category: "Other",
-    splitType: "equal",
   });
   
   const [billImage, setBillImage] = useState<File | null>(null);
@@ -47,77 +56,96 @@ export default function AddExpensePage() {
   const [error, setError] = useState("");
   const [ocrAmount, setOcrAmount] = useState<string | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setBillImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      
-      // Upload for OCR processing
-      const formData = new FormData();
-      formData.append("bill_image", file);
-      
-      fetch(`${API_URL}/expenses/process-bill`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.amount) {
-            setOcrAmount(data.amount.toFixed(2));
-            setFormData(prev => ({ ...prev, amount: data.amount.toFixed(2) }));
-          }
-        })
-        .catch((err) => {
-          console.error("OCR processing error:", err);
-        });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
     try {
-      const submitFormData = new FormData();
-      submitFormData.append("title", formData.title);
-      submitFormData.append("amount", formData.amount);
-      submitFormData.append("description", formData.description);
-      submitFormData.append("category", formData.category);
-      submitFormData.append("split_type", formData.splitType);
-      submitFormData.append("participant_ids", "1"); // TODO: Add participant selection
-
-      if (billImage) {
-        submitFormData.append("bill_image", billImage);
+      const username = localStorage.getItem("username");
+      if (!username) {
+        router.push("/login");
+        return;
       }
 
-      const response = await fetch(`${API_URL}/expenses/`, {
+      const formDataToSend = new FormData();
+      formDataToSend.append("title", formData.title);
+      formDataToSend.append("amount", formData.amount);
+      formDataToSend.append("description", formData.description);
+      formDataToSend.append("category", formData.category);
+      formDataToSend.append("participants", JSON.stringify(ALLOWED_USERS));
+      if (billImage) {
+        formDataToSend.append("bill_image", billImage);
+      }
+
+      const response = await fetch(`${API_URL}/expenses`, {
         method: "POST",
-        body: submitFormData,
-        credentials: "include",
+        headers: {
+          'X-Username': username
+        },
+        body: formDataToSend,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create expense");
+        throw new Error("Failed to add expense");
       }
 
-      router.push("/expenses");
+      router.push("/dashboard");
     } catch (err) {
-      console.error("Submit error:", err);
-      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Error adding expense:", err);
+      setError(err instanceof Error ? err.message : "Failed to add expense");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBillImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+
+    // Process image for OCR
+    try {
+      const username = localStorage.getItem("username");
+      if (!username) {
+        router.push("/login");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch(`${API_URL}/process-bill`, {
+        method: "POST",
+        headers: {
+          'X-Username': username
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.amount) {
+          setOcrAmount(data.amount.toString());
+          setFormData(prev => ({
+            ...prev,
+            amount: data.amount.toString(),
+            description: data.description || ""
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Error processing image:", err);
+    }
+  };
+
   return (
-    <div className="container max-w-2xl py-8">
+    <div className="container mx-auto p-4 max-w-2xl">
       <Card>
         <CardHeader>
-          <CardTitle>Add New Expense</CardTitle>
+          <CardTitle className="text-2xl">Add New Expense</CardTitle>
         </CardHeader>
         <CardContent>
           {error && (
@@ -125,8 +153,8 @@ export default function AddExpensePage() {
               {error}
             </Alert>
           )}
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
@@ -134,36 +162,40 @@ export default function AddExpensePage() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
-                placeholder="Dinner at Restaurant"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <div className="relative">
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  required
-                  placeholder="0.00"
-                  className={ocrAmount ? "border-green-500" : ""}
-                />
-                {ocrAmount && (
-                  <span className="absolute right-3 top-2 text-sm text-green-600">
-                    OCR detected: ${ocrAmount}
-                  </span>
-                )}
-              </div>
+              <Label htmlFor="amount">Amount ($)</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                required
+              />
+              {ocrAmount && (
+                <p className="text-sm text-gray-500">
+                  Amount detected from bill: ${ocrAmount}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Category (Optional)</Label>
               <Select
                 value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -179,60 +211,47 @@ export default function AddExpensePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required
-                placeholder="Add details about the expense"
-                rows={3}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bill Image</Label>
-              <div className="flex flex-col items-center p-4 border-2 border-dashed rounded-lg hover:border-primary cursor-pointer"
-                   onClick={() => fileInputRef.current?.click()}>
+              <Label htmlFor="bill_image">Bill Image</Label>
+              <div className="flex flex-col items-center p-4 border-2 border-dashed rounded-lg hover:bg-gray-50 transition-colors">
                 <input
-                  ref={fileInputRef}
+                  id="bill_image"
                   type="file"
                   accept="image/*"
-                  onChange={handleImageChange}
+                  capture="environment"
                   className="hidden"
+                  onChange={handleFileChange}
                 />
-                
-                {previewUrl ? (
-                  <div className="relative w-full">
+                <label
+                  htmlFor="bill_image"
+                  className="flex flex-col items-center gap-2 cursor-pointer"
+                >
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Icons.camera className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Take Photo or Upload Bill</p>
+                    <p className="text-xs text-gray-500">
+                      We'll automatically detect the amount
+                    </p>
+                  </div>
+                </label>
+                {previewUrl && (
+                  <div className="mt-4 relative">
                     <img
                       src={previewUrl}
                       alt="Bill preview"
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="max-w-full h-auto rounded-lg"
                     />
-                    <Button
+                    <button
                       type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         setBillImage(null);
                         setPreviewUrl(null);
-                        setOcrAmount(null);
                       }}
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
                     >
-                      Remove
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Icons.upload className="w-8 h-8 mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-600">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Supports images (PNG, JPG)
-                    </p>
+                      <Icons.x className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -243,7 +262,7 @@ export default function AddExpensePage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Creating..." : "Create Expense"}
+              {isLoading ? "Adding..." : "Add Expense"}
             </Button>
           </form>
         </CardContent>

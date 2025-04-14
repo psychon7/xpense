@@ -3,106 +3,105 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 
-const API_URL = "http://localhost:8000";
+const ALLOWED_USERS = [
+  "mohan95", "vandana94", "sushruth93",  // Real users
+  "test1", "test2", "test3"  // Test users
+];
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
 
-    try {
-      const formData = new URLSearchParams();
-      formData.append("username", username);
-      formData.append("password", password);
-
-      const response = await fetch(`${API_URL}/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Login failed");
-      }
-
-      const data = await response.json();
-      localStorage.setItem("token", data.access_token);
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err instanceof Error ? err.message : "An error occurred. Please try again.");
-    } finally {
-      setIsLoading(false);
+    if (!ALLOWED_USERS.includes(username)) {
+      setError("You are not part of the flat. Access denied.");
+      return;
     }
+
+    localStorage.setItem("username", username);
+    router.push("/dashboard");
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className="w-full">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl text-center">Xpense</CardTitle>
-          <p className="text-center text-sm text-gray-600">
-            Track shared expenses with your flatmates
-          </p>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Welcome to Xpense</CardTitle>
+          <p className="text-gray-500 mt-2">Split expenses with your flatmates</p>
         </CardHeader>
         <CardContent>
           {error && (
-            <Alert variant="destructive" className="mb-4 text-sm">
+            <Alert variant="destructive" className="mb-4">
               {error}
             </Alert>
           )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm">Username</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="text-lg"
+                placeholder="Enter your username"
                 required
-                autoComplete="username"
-                autoCapitalize="none"
-                disabled={isLoading}
               />
+              <p className="text-sm text-gray-500">
+                Use your name followed by birth year (e.g., john95)
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="text-lg"
-                required
-                autoComplete="current-password"
-                disabled={isLoading}
-              />
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full text-base py-6"
-              disabled={isLoading}
-            >
-              {isLoading ? "Logging in..." : "Login"}
+            <Button type="submit" className="w-full">
+              Enter App
             </Button>
           </form>
+
+          <div className="mt-8 space-y-6">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold mb-4">How it works 🚀</h3>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3 text-left">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <p className="font-medium">Simple Login</p>
+                    <p className="text-sm text-gray-600">Just enter your username to get started (e.g., mohan95)</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 text-left">
+                  <span className="text-2xl">💰</span>
+                  <div>
+                    <p className="font-medium">Add Expenses</p>
+                    <p className="text-sm text-gray-600">Enter amount and description, or upload a bill photo for automatic detection</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 text-left">
+                  <span className="text-2xl">⚖️</span>
+                  <div>
+                    <p className="font-medium">Auto Split</p>
+                    <p className="text-sm text-gray-600">Expenses are automatically split equally between all flatmates</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 text-left">
+                  <span className="text-2xl">📊</span>
+                  <div>
+                    <p className="font-medium">Track Balances</p>
+                    <p className="text-sm text-gray-600">See who owes what and track expense history</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

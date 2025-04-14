@@ -3,51 +3,84 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Icons } from "@/components/ui/icons";
+import { API_URL } from "@/config/api";
+import { ExpenseActions } from "@/components/expense-actions";
+import { BalanceSummary } from "@/components/balance-summary";
+import { AddExpense } from "@/components/add-expense";
+
+const categories = [
+  "Food",
+  "Rent",
+  "Utilities",
+  "Transportation",
+  "Entertainment",
+  "Shopping",
+  "Other",
+] as const;
+
+type Category = typeof categories[number];
 
 interface Expense {
   id: number;
+  title: string;
   amount: number;
   description: string;
-  date: string;
-  payer_id: number;
+  category: string;
+  creator: string;
+  bill_image_url?: string;
+  participants: string[];
+  created_at: string;
+  is_settled: boolean;
 }
 
 interface Balance {
-  total_expenses: number;
-  user_paid: number;
-  share_per_user: number;
-  balance: number;
+  amount: number;
+  user: string;
+}
+
+interface BalanceData {
+  owed_to_me: Balance[];
+  i_owe: Balance[];
+  net_balance: number;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [balance, setBalance] = useState<Balance | null>(null);
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
+  const [balance, setBalance] = useState<BalanceData>({
+    owed_to_me: [],
+    i_owe: [],
+    net_balance: 0
+  });
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const username = localStorage.getItem("username");
+    if (!username) {
+      router.push("/login");
+      return;
+    }
+
     fetchExpenses();
     fetchBalance();
-  }, []);
+  }, [router]);
 
   const fetchExpenses = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
+      const username = localStorage.getItem("username");
+      if (!username) {
         router.push("/login");
         return;
       }
 
-      const response = await fetch("http://localhost:8000/expenses/", {
+      const response = await fetch(`${API_URL}/expenses/`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          'X-Username': username
+        }
       });
 
       if (response.ok) {
@@ -58,21 +91,23 @@ export default function DashboardPage() {
       }
     } catch (err) {
       setError("Failed to fetch expenses");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchBalance = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
+      const username = localStorage.getItem("username");
+      if (!username) {
         router.push("/login");
         return;
       }
 
-      const response = await fetch("http://localhost:8000/balance/", {
+      const response = await fetch(`${API_URL}/balance/`, {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          'X-Username': username
+        }
       });
 
       if (response.ok) {
@@ -84,53 +119,25 @@ export default function DashboardPage() {
     }
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
-      const response = await fetch("http://localhost:8000/expenses/", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: parseFloat(amount),
-          description,
-        }),
-      });
-
-      if (response.ok) {
-        setAmount("");
-        setDescription("");
-        fetchExpenses();
-        fetchBalance();
-      } else {
-        const error = await response.json();
-        setError(error.detail || "Failed to add expense");
-      }
-    } catch (err) {
-      setError("An error occurred. Please try again.");
-    }
-  };
-
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("username");
     router.push("/login");
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col space-y-2 sm:flex-row sm:justify-between sm:items-center">
-        <h1 className="text-2xl font-bold">Xpense</h1>
-        <Button onClick={handleLogout} variant="outline" size="sm">
+    <div className="container py-8 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <Button variant="outline" onClick={handleLogout}>
+          <Icons.logout className="mr-2 h-4 w-4" />
           Logout
         </Button>
       </div>
@@ -141,102 +148,87 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      <Card className="bg-white shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Your Balance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {balance && (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-600">Total Expenses</p>
-                <p className="font-semibold">${balance.total_expenses.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">You Paid</p>
-                <p className="font-semibold">${balance.user_paid.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Share Per User</p>
-                <p className="font-semibold">${balance.share_per_user.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Balance</p>
-                <p className={`font-semibold ${balance.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  ${balance.balance.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <BalanceSummary balances={balance} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Add Expense</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAddExpense} className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="text-lg"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Add Expense
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <AddExpense
+        onExpenseAdded={() => {
+          fetchExpenses();
+          fetchBalance();
+        }}
+        categories={categories}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Expenses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {expenses.map((expense) => (
-              <div
-                key={expense.id}
-                className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{expense.description}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(expense.date).toLocaleDateString()}
-                  </p>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {expenses.map((expense) => (
+          <Card key={expense.id} className="relative">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {expense.title}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <div className={`px-2 py-1 rounded text-xs ${
+                  expense.is_settled ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {expense.is_settled ? "Settled" : "Pending"}
                 </div>
-                <p className="font-bold text-right ml-4">
-                  ${expense.amount.toFixed(2)}
-                </p>
+                <ExpenseActions 
+                  expense={expense}
+                  onUpdate={() => {
+                    fetchExpenses();
+                    fetchBalance();
+                  }}
+                  categories={categories}
+                />
               </div>
-            ))}
-            {expenses.length === 0 && (
-              <p className="text-center text-gray-500 py-4">
-                No expenses yet
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${expense.amount.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                <span className="inline-flex items-center">
+                  <Icons.chart className="w-3 h-3 mr-1" />
+                  {expense.category}
+                </span>
+                <span className="mx-2">•</span>
+                <span className="inline-flex items-center">
+                  <Icons.calendar className="w-3 h-3 mr-1" />
+                  {new Date(expense.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              {expense.description && (
+                <p className="text-sm mt-2 text-muted-foreground">{expense.description}</p>
+              )}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center text-sm text-gray-500">
+                  <Icons.users className="w-4 h-4 mr-1" />
+                  <span>Paid by {expense.creator}</span>
+                </div>
+                <div className="text-xs text-gray-400">
+                  Split with: {expense.participants.join(", ")}
+                </div>
+                {expense.bill_image_url && (
+                  <div className="mt-2">
+                    <a
+                      href={expense.bill_image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline flex items-center"
+                    >
+                      <Icons.upload className="w-3 h-3 mr-1" />
+                      View Bill
+                    </a>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {expenses.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No expenses found. Add your first expense!</p>
+        </div>
+      )}
     </div>
   );
 }

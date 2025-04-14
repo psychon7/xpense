@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Icons } from "@/components/ui/icons";
-
-const API_URL = "http://localhost:8000";
+import { API_URL } from "@/config/api";
+import { ExpenseActions } from "@/components/expense-actions";
 
 interface Expense {
   id: number;
@@ -16,15 +16,21 @@ interface Expense {
   description: string;
   category: string;
   date: string;
-  bill_image_url: string | null;
+  bill_image_url?: string;
   is_settled: boolean;
-  creator: {
-    username: string;
-  };
-  participants: Array<{
-    username: string;
-  }>;
+  creator: string;
+  participants: string[];
 }
+
+const categories = [
+  "Food",
+  "Rent",
+  "Utilities",
+  "Transportation",
+  "Entertainment",
+  "Shopping",
+  "Other",
+] as const;
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -38,8 +44,16 @@ export default function ExpensesPage() {
 
   const fetchExpenses = async () => {
     try {
+      const username = localStorage.getItem("username");
+      if (!username) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(`${API_URL}/expenses/`, {
-        credentials: "include",
+        headers: {
+          'X-Username': username
+        }
       });
 
       if (!response.ok) {
@@ -58,9 +72,17 @@ export default function ExpensesPage() {
 
   const handleSettleExpense = async (expenseId: number) => {
     try {
+      const username = localStorage.getItem("username");
+      if (!username) {
+        router.push("/login");
+        return;
+      }
+
       const response = await fetch(`${API_URL}/expenses/${expenseId}/settle`, {
         method: "PUT",
-        credentials: "include",
+        headers: {
+          'X-Username': username
+        }
       });
 
       if (!response.ok) {
@@ -101,10 +123,17 @@ export default function ExpensesPage() {
               <CardTitle className="text-sm font-medium">
                 {expense.title}
               </CardTitle>
-              <div className={`px-2 py-1 rounded text-xs ${
-                expense.is_settled ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-              }`}>
-                {expense.is_settled ? "Settled" : "Pending"}
+              <div className="flex items-center gap-2">
+                <div className={`px-2 py-1 rounded text-xs ${
+                  expense.is_settled ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                }`}>
+                  {expense.is_settled ? "Settled" : "Pending"}
+                </div>
+                <ExpenseActions 
+                  expense={expense}
+                  onUpdate={fetchExpenses}
+                  categories={categories}
+                />
               </div>
             </CardHeader>
             <CardContent>
@@ -127,10 +156,10 @@ export default function ExpensesPage() {
                 <div className="flex flex-col space-y-1">
                   <div className="flex items-center text-sm text-gray-500">
                     <Icons.users className="w-4 h-4 mr-1" />
-                    <span>Paid by {expense.creator.username}</span>
+                    <span>Paid by {expense.creator}</span>
                   </div>
                   <div className="text-xs text-gray-400">
-                    Split with: {expense.participants.map(p => p.username).join(", ")}
+                    Split with: {expense.participants.join(", ")}
                   </div>
                 </div>
 
@@ -156,3 +185,4 @@ export default function ExpensesPage() {
       )}
     </div>
   );
+}

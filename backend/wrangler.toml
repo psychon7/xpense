@@ -11,7 +11,8 @@ database_id = "" # Will be filled after creating the database
 # KV for session management
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "" # Will be filled after creating the KV namespace
+id = "test-id" # This is just for local development
+preview_id = "test-id"
 
 # Environment variables
 [vars]

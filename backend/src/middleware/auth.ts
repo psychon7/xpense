@@ -1,36 +1,24 @@
 import { Context } from 'hono';
-import { HTTPException } from 'hono/http-exception';
-import * as jose from 'jose';
-import { Env, AuthUser } from '../types';
+import { Env } from '../types';
 
-export async function auth(c: Context<{ Bindings: Env }>, next: () => Promise<void>) {
-  try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new HTTPException(401, { message: 'Unauthorized' });
-    }
+const ALLOWED_USERS = [
+  "mohan95", "vandana94", "sushruth93",  // Real users
+  "test1", "test2", "test3"  // Test users
+];
 
-    const token = authHeader.split(' ')[1];
-    const secret = new TextEncoder().encode(c.env.JWT_SECRET);
-    
-    const { payload } = await jose.jwtVerify(token, secret);
-    if (!payload.sub) {
-      throw new HTTPException(401, { message: 'Invalid token' });
-    }
+type Variables = {
+  username: string;
+};
 
-    // Get user from database
-    const user = await c.env.DB.prepare(
-      'SELECT id, username FROM users WHERE id = ?'
-    ).bind(payload.sub).first<AuthUser>();
+export async function authMiddleware(c: Context<{ Bindings: Env, Variables: Variables }>, next: () => Promise<void>) {
+  const username = c.req.header('X-Username');
 
-    if (!user) {
-      throw new HTTPException(401, { message: 'User not found' });
-    }
-
-    // Add user to context
-    c.set('user', user);
-    await next();
-  } catch (error) {
-    throw new HTTPException(401, { message: 'Unauthorized' });
+  if (!username || !ALLOWED_USERS.includes(username)) {
+    return c.json({ error: 'You are not part of the flat. Access denied.' }, 401);
   }
+
+  // Add username to context for use in handlers
+  c.set('username', username);
+  
+  await next();
 }
