@@ -79,8 +79,14 @@ export function ExpenseActions({ expense, onUpdate, categories }: ExpenseActions
     try {
       const loadingToast = toast.loading('Settling expense...');
       
-      const response = await fetch(`/api/expenses/${expense.id}/settle`, {
+      const username = localStorage.getItem("username");
+      if (!username) return;
+
+      const response = await fetch(`${API_URL}/expenses/${expense.id}/settle`, {
         method: 'POST',
+        headers: {
+          'X-Username': username
+        }
       });
 
       if (!response.ok) {
@@ -110,8 +116,14 @@ export function ExpenseActions({ expense, onUpdate, categories }: ExpenseActions
     try {
       const loadingToast = toast.loading('Deleting expense...');
       
-      const response = await fetch(`/api/expenses/${expense.id}`, {
+      const username = localStorage.getItem("username");
+      if (!username) return;
+
+      const response = await fetch(`${API_URL}/expenses/${expense.id}`, {
         method: 'DELETE',
+        headers: {
+          'X-Username': username
+        }
       });
 
       if (!response.ok) {

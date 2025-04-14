@@ -57,26 +57,33 @@ export function AddExpense({ onExpenseAdded, categories }: AddExpenseProps) {
       const username = localStorage.getItem("username");
       if (!username) return;
 
-      const formData = new FormData();
-      formData.append("image", file);
+      if (billImage) {
+        try {
+          const formData = new FormData();
+          formData.append('file', billImage);
+          
+          const response = await fetch(`${API_URL}/upload`, {
+            method: 'POST',
+            headers: {
+              'X-Username': username
+            },
+            body: formData,
+          });
 
-      const response = await fetch(`${API_URL}/process-bill`, {
-        method: "POST",
-        headers: {
-          'X-Username': username
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.amount) {
-          setFormData(prev => ({
-            ...prev,
-            amount: data.amount.toString(),
-            description: data.description || ""
-          }));
-          toast.success('Bill image uploaded successfully');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.amount) {
+              setFormData(prev => ({
+                ...prev,
+                amount: data.amount.toString(),
+                description: data.description || ""
+              }));
+              toast.success('Bill image uploaded successfully');
+            }
+          }
+        } catch (err) {
+          console.error("Error processing image:", err);
+          toast.error('Failed to upload bill image, continuing without it');
         }
       }
     } catch (err) {
