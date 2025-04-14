@@ -122,7 +122,7 @@ router.post('/', async (c) => {
     creator: username,
     participants,
     created_at: new Date().toISOString(),
-    bill_image_url: billImage ? 'https://example.com/bill.jpg' : undefined,
+    bill_image_url: billImage ? 'https://example.com/bill.jpg' : null,
     is_settled: false,
     balances: Object.fromEntries(updatedBalances)
   };

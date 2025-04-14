@@ -35,11 +35,14 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://xpense-api.mohankumarmmmm17.workers.dev
 
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
       - name: Deploy to Cloudflare Pages
         if: github.ref == 'refs/heads/main'
-        run: |
-          npm install -g wrangler
-          wrangler pages deploy out --project-name=xpense-app
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd ..
+          wrangler pages deploy frontend/out --project-name=xpense-app
