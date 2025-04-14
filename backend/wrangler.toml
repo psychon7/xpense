@@ -1,0 +1,26 @@
+name = "xpense-api"
+main = "src/index.ts"
+compatibility_date = "2024-04-14"
+
+# D1 Database configuration
+[[d1_databases]]
+binding = "DB"
+database_name = "xpense-db"
+database_id = "" # Will be filled after creating the database
+
+# KV for session management
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "" # Will be filled after creating the KV namespace
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+SITE_NAME = "Xpense App"
+
+# Secrets that will be set using wrangler
+# wrangler secret put CLOUDINARY_CLOUD_NAME
+# wrangler secret put CLOUDINARY_API_KEY
+# wrangler secret put CLOUDINARY_API_SECRET
+# wrangler secret put OPENROUTER_API_KEY
+# wrangler secret put JWT_SECRET
