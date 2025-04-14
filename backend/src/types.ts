@@ -1,3 +1,5 @@
+/// <reference types="@cloudflare/workers-types" />
+
 export interface User {
   id: number;
   username: string;
@@ -49,12 +51,9 @@ export interface AuthUser {
 export interface Env {
   DB: D1Database;
   SESSIONS: KVNamespace;
-  CLOUDINARY_CLOUD_NAME: string;
-  CLOUDINARY_API_KEY: string;
-  CLOUDINARY_API_SECRET: string;
+  R2_BUCKET: R2Bucket;
   OPENROUTER_API_KEY: string;
   JWT_SECRET: string;
   ENVIRONMENT: string;
   SITE_NAME: string;
 }
-

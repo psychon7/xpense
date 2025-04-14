@@ -25,7 +25,7 @@ A modern expense tracking application built with Next.js, TypeScript, and Cloudf
   - TypeScript
   - Hono
   - D1 Database
-  - Cloudinary
+  - Cloudflare R2
   - OpenRouter AI
 
 ## Development
@@ -84,9 +84,6 @@ Add these secrets to your GitHub repository:
 - `CF_API_TOKEN`: Cloudflare API token
 - `CF_ACCOUNT_ID`: Cloudflare account ID
 - `NEXT_PUBLIC_API_URL`: Backend API URL
-- `CLOUDINARY_CLOUD_NAME`: Cloudinary cloud name
-- `CLOUDINARY_API_KEY`: Cloudinary API key
-- `CLOUDINARY_API_SECRET`: Cloudinary API secret
 - `OPENROUTER_API_KEY`: OpenRouter API key
 - `JWT_SECRET`: Secret for JWT tokens
 

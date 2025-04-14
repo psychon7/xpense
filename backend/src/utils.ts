@@ -1,20 +1,12 @@
 import { Env } from './types';
 
-interface CloudinaryResponse {
-  secure_url: string;
+interface AIResponse {
+  total_amount?: number;
+  description?: string;
 }
 
-interface OpenRouterResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
-}
-
-interface ExtractedData {
-  total_amount: number;
-  description: string;
+interface R2Response {
+  url: string;
 }
 
 // Vision models in order of preference
@@ -24,40 +16,30 @@ const VISION_MODELS = [
   "google/gemini-pro-vision",
 ];
 
-export async function uploadToCloudinary(
+export async function uploadToR2(
   file: ArrayBuffer,
   env: Env
 ): Promise<string> {
-  const formData = new FormData();
-  const timestamp = new Date().getTime();
-  formData.append('file', new Blob([file]));
-  formData.append('timestamp', timestamp.toString());
-  formData.append('folder', 'bills');
-  formData.append('api_key', env.CLOUDINARY_API_KEY);
+  try {
+    // Generate a unique filename using timestamp and random string
+    const timestamp = new Date().getTime();
+    const randomString = Math.random().toString(36).substring(7);
+    const filename = `bills/${timestamp}-${randomString}.jpg`;
 
-  const params = {
-    timestamp,
-    folder: 'bills',
-  };
+    // Upload to R2
+    await env.R2_BUCKET.put(filename, file, {
+      httpMetadata: {
+        contentType: 'image/jpeg',
+      },
+    });
 
-  // Generate signature
-  const signature = await generateCloudinarySignature(params, env.CLOUDINARY_API_SECRET);
-  formData.append('signature', signature);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${env.CLOUDINARY_CLOUD_NAME}/image/upload`,
-    {
-      method: 'POST',
-      body: formData,
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to upload image to Cloudinary');
+    // Generate public URL
+    const url = `https://${env.R2_BUCKET.name}.r2.dev/${filename}`;
+    return url;
+  } catch (error) {
+    // Use error.toString() instead of console.error for Workers environment
+    throw new Error(`Failed to upload image to R2: ${error}`);
   }
-
-  const data = await response.json<CloudinaryResponse>();
-  return data.secure_url;
 }
 
 async function generateCloudinarySignature(
@@ -84,7 +66,7 @@ export async function analyzeImageWithOpenRouter(
   imageBase64: string,
   model: string,
   env: Env
-): Promise<ExtractedData | null> {
+): Promise<AIResponse | null> {
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -117,19 +99,19 @@ export async function analyzeImageWithOpenRouter(
       throw new Error(`OpenRouter API error: ${response.statusText}`);
     }
 
-    const data = await response.json<OpenRouterResponse>();
+    const data = await response.json();
     const content = data.choices[0].message.content;
-    return JSON.parse(content) as ExtractedData;
+    return JSON.parse(content) as AIResponse;
   } catch (error) {
-    console.error(`Error with ${model}:`, error);
-    return null;
+    // Use error.toString() instead of console.error for Workers environment
+    throw new Error(`Error with ${model}: ${error}`);
   }
 }
 
 export async function analyzeImageWithFallbacks(
   file: ArrayBuffer,
   env: Env
-): Promise<ExtractedData | null> {
+): Promise<AIResponse | null> {
   const imageBase64 = btoa(
     String.fromCharCode(...new Uint8Array(file))
   );
@@ -142,8 +124,8 @@ export async function analyzeImageWithFallbacks(
         return result;
       }
     } catch (error) {
-      console.error(`Error with ${model}:`, error);
-      continue;
+      // Use error.toString() instead of console.error for Workers environment
+      throw new Error(`Error with ${model}: ${error}`);
     }
   }
 
@@ -158,8 +140,8 @@ export async function processBillImage(
   amount?: number;
   description?: string;
 }> {
-  // Upload image to Cloudinary
-  const imageUrl = await uploadToCloudinary(file, env);
+  // Upload image to R2
+  const imageUrl = await uploadToR2(file, env);
 
   // Analyze image with AI
   const analysis = await analyzeImageWithFallbacks(file, env);
