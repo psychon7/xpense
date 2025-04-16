@@ -1,54 +1,54 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { Env, Variables } from './types';
+import { authMiddleware } from './middleware/auth';
+import { authRouter } from './routes/auth';
 import { expenseRouter } from './routes/expense';
 import { balanceRouter } from './routes/balance';
-import { Env, Variables } from './types';
+import { billRouter } from './routes/bill';
 
 const app = new Hono<{ Bindings: Env, Variables: Variables }>();
 
-// Enable CORS
-app.use('*', cors());
+// Add CORS middleware
+app.use('*', cors({
+  origin: ['http://localhost:3000', 'https://xpense-app.pages.dev'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Username'],
+  exposeHeaders: ['Content-Length', 'X-Requested-With'],
+  maxAge: 86400
+}));
+
+// Add request logging
+app.use('*', async (c, next) => {
+  console.log(`[${new Date().toISOString()}] 🔄 ${c.req.method} ${c.req.path} - Request started`);
+  await next();
+});
 
 // Add username from header to context
 app.use('*', async (c, next) => {
   const username = c.req.header('X-Username');
   if (!username && !c.req.path.startsWith('/auth')) {
-    return c.json({ message: 'Unauthorized' }, 401);
+    return c.json({ error: 'Username is required' }, 401);
   }
   c.set('username', username || '');
   await next();
 });
 
-// Mock auth route
-app.post('/auth/login', async (c) => {
-  const { username, password } = await c.req.json();
-  
-  // Mock authentication - in real app, verify against database
-  const validUsers = ['test1', 'test2', 'test3'];
-  if (validUsers.includes(username) && password === 'password') {
-    return c.json({ success: true });
-  }
-  
-  return c.json({ message: 'Invalid credentials' }, 401);
-});
-
 // Mount routers
+app.route('/auth', authRouter);
+
+// Protected routes with auth middleware
+app.use('/expenses/*', authMiddleware);
+app.use('/balance/*', authMiddleware);
+app.use('/analyze', authMiddleware); // Add auth middleware for analyze endpoint
+
 app.route('/expenses', expenseRouter);
 app.route('/balance', balanceRouter);
+app.route('/', billRouter);
 
 // Add health check route
 app.get('/', (c) => {
   return c.json({ status: 'ok', message: 'Xpense API is running' });
-});
-
-// Add catch-all route for debugging
-app.all('*', (c) => {
-  console.log('Request:', {
-    method: c.req.method,
-    path: c.req.path,
-    headers: Object.fromEntries(c.req.raw.headers.entries()),
-  });
-  return c.json({ error: 'Route not found' }, 404);
 });
 
 export default app;
